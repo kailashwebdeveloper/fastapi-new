@@ -10,24 +10,30 @@ phases:
     runtime-versions:
       python: $PYTHON_VERSION
     commands:
-      - echo "Installing system and project dependencies..."
-      - python -m pip install --upgrade pip
-      - pip install poetry || pip install pipenv || echo "Using standard pip"
+      - echo "Installing uv for ultra-fast dependency resolution..."
+      - curl -LsSf https://astral.sh | sh
+      - . $HOME/.local/bin/env
+      - echo "Upgrading core tools..."
+      - uv pip install --system --upgrade pip setuptools wheel
       - |
         if [ -f "requirements.txt" ]; then
-          pip install -r requirements.txt
+          echo "Installing requirements via uv..."
+          uv pip install --system -r requirements.txt
         elif [ -f "pyproject.toml" ]; then
-          poetry install
+          echo "Installing poetry dependencies via uv..."
+          uv pip install --system poetry
+          poetry config virtualenvs.create false
+          poetry install --no-interaction --no-ansi
         fi
 
   pre_build:
     commands:
-      - echo "Running security scans and static analysis..."
-      - pip install bandit pytest pytest-cov
-      - # Security scan (ignoring assert statements often used in testing frameworks)
+      - echo "Installing testing and security tools..."
+      - uv pip install --system bandit pytest pytest-cov
+      - echo "Running security scan..."
       - bandit -r $APP_DIR -x tests/
-      - echo "Validating FastAPI configuration..."
-      - python -c "import fastapi; print(f'FastAPI version:', fastapi.__version__)"
+      - echo "Verifying FastAPI environment..."
+      - python -c "import fastapi; print('FastAPI Version:', fastapi.__version__)"
 
   build:
     commands:
@@ -36,8 +42,8 @@ phases:
 
   post_build:
     commands:
-      - echo "Build completed successfully on $(date)"
-      - echo "Preparing artifacts..."
+      - echo "Build finished on $(date)"
+      - echo "Packaging production artifacts..."
       - mkdir -p build_output
       - cp -R $APP_DIR main.py requirements.txt build_output/ 2>/dev/null || cp -R . build_output/
 
@@ -49,4 +55,5 @@ artifacts:
 
 cache:
   paths:
+    - '/root/.cache/uv/**/*'
     - '/root/.cache/pip/**/*'
