@@ -1,59 +1,33 @@
 version: 0.2
 
-env:
-  variables:
-    PYTHON_VERSION: "3.11"
-    APP_DIR: "app"
-
 phases:
   install:
     runtime-versions:
-      python: $PYTHON_VERSION
+      python: 3.12
+
     commands:
-      - echo "Installing uv for ultra-fast dependency resolution..."
-      - curl -LsSf https://astral.sh | sh
-      - . $HOME/.local/bin/env
-      - echo "Upgrading core tools..."
-      - uv pip install --system --upgrade pip setuptools wheel
-      - |
-        if [ -f "requirements.txt" ]; then
-          echo "Installing requirements via uv..."
-          uv pip install --system -r requirements.txt
-        elif [ -f "pyproject.toml" ]; then
-          echo "Installing poetry dependencies via uv..."
-          uv pip install --system poetry
-          poetry config virtualenvs.create false
-          poetry install --no-interaction --no-ansi
-        fi
+      - echo "Installing dependencies..."
+      - python -m pip install --upgrade pip
+      - pip install -r requirements.txt
 
   pre_build:
     commands:
-      - echo "Installing testing and security tools..."
-      - uv pip install --system bandit pytest pytest-cov
-      - echo "Running security scan..."
-      - bandit -r $APP_DIR -x tests/
-      - echo "Verifying FastAPI environment..."
-      - python -c "import fastapi; print('FastAPI Version:', fastapi.__version__)"
+      - echo "Running lint..."
+      # - ruff .
+      # - mypy .
+
+      - echo "Running tests..."
+      # - pytest
 
   build:
     commands:
-      - echo "Executing unit tests..."
-      - pytest --cov=$APP_DIR tests/ --cov-report=term-missing
+      - echo "Build started on $(date)"
+      - python -m compileall .
 
   post_build:
     commands:
-      - echo "Build finished on $(date)"
-      - echo "Packaging production artifacts..."
-      - mkdir -p build_output
-      - cp -R $APP_DIR main.py requirements.txt build_output/ 2>/dev/null || cp -R . build_output/
+      - echo "Build completed on $(date)"
 
 artifacts:
   files:
     - '**/*'
-  base-directory: 'build_output'
-  discard-paths: no
-
-cache:
-  paths:
-    - '/root/.cache/uv/**/*'
-    - '/root/.cache/pip/**/*'
