@@ -1,0 +1,52 @@
+version: 0.2
+
+env:
+  variables:
+    PYTHON_VERSION: "3.11"
+    APP_DIR: "app"
+
+phases:
+  install:
+    runtime-versions:
+      python: $PYTHON_VERSION
+    commands:
+      - echo "Installing system and project dependencies..."
+      - python -m pip install --upgrade pip
+      - pip install poetry || pip install pipenv || echo "Using standard pip"
+      - |
+        if [ -f "requirements.txt" ]; then
+          pip install -r requirements.txt
+        elif [ -f "pyproject.toml" ]; then
+          poetry install
+        fi
+
+  pre_build:
+    commands:
+      - echo "Running security scans and static analysis..."
+      - pip install bandit pytest pytest-cov
+      - # Security scan (ignoring assert statements often used in testing frameworks)
+      - bandit -r $APP_DIR -x tests/
+      - echo "Validating FastAPI configuration..."
+      - python -c "import fastapi; print(f'FastAPI version:', fastapi.__version__)"
+
+  build:
+    commands:
+      - echo "Executing unit tests..."
+      - pytest --cov=$APP_DIR tests/ --cov-report=term-missing
+
+  post_build:
+    commands:
+      - echo "Build completed successfully on $(date)"
+      - echo "Preparing artifacts..."
+      - mkdir -p build_output
+      - cp -R $APP_DIR main.py requirements.txt build_output/ 2>/dev/null || cp -R . build_output/
+
+artifacts:
+  files:
+    - '**/*'
+  base-directory: 'build_output'
+  discard-paths: no
+
+cache:
+  paths:
+    - '/root/.cache/pip/**/*'
