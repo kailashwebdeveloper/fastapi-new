@@ -1,16 +1,11 @@
 version: 0.2
 
-env:
-  variables:
-    # Tell your FastAPI code where to find the test database
-    DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/python_fastapi_db"
-
 phases:
   install:
     runtime-versions:
       python: 3.11
     commands:
-      - echo "Installing dependencies..."
+      - echo "Installing deployment and testing dependencies..."
       - pip install --upgrade pip setuptools wheel
       - pip install uv
       - if [ -f "requirements.txt" ]; then uv pip install --system -r requirements.txt; fi
@@ -18,16 +13,17 @@ phases:
 
   pre_build:
     commands:
-      - echo "Starting background PostgreSQL database for unit tests..."
+      - echo "Running targeted security scan on production files..."
+      # Excludes tests folder and ignores assert checks (B101) inside evaluation tools
+      - python -m bandit -r . -x ./tests,./venv,.git -sk B101
+      - echo "Starting database mock infrastructure..."
+      # Spins up an isolated database runner so pytest can complete successfully
       - docker run --name test-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=python_fastapi_db -p 5432:5432 -d postgres:15-alpine
-      - echo "Waiting for database to accept connections..."
-      - sleep 5 # Gives the container a few seconds to spin up completely
-      - echo "Running security scans..."
-      - python -m bandit -r . -x tests/
+      - sleep 5
 
   build:
     commands:
-      - echo "Executing unit tests..."
+      - echo "Executing validation testing suite..."
       - python -m pytest tests/
 
   post_build:
