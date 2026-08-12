@@ -10,10 +10,10 @@ phases:
     runtime-versions:
       python: $PYTHON_VERSION
     commands:
-      - echo "Installing uv for ultra-fast dependency resolution..."
-      - curl -LsSf https://astral.sh | sh
-      - . $HOME/.local/bin/env
-      - echo "Upgrading core tools..."
+      - echo "Installing uv via pip to guarantee clean execution..."
+      - pip install --upgrade pip setuptools wheel
+      - pip install uv
+      - echo "Upgrading package components inside uv..."
       - uv pip install --system --upgrade pip setuptools wheel
       - |
         if [ -f "requirements.txt" ]; then
